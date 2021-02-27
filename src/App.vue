@@ -207,10 +207,13 @@ export default {
         return null;
       }
       this.tickers.push(currentTicker);
+
+      localStorage.setItem("criptonomicon");
       this.showingWrongTiker = false;
+
       setInterval(async () => {
         const f = await fetch(
-          `https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.name}&tsyms=USD&api_key=f0662d79ddfc64357d7324999c381576700c981665fb871400a1b2611ca66cf1`
+          `https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.name}&tsyms=USD`
         );
         const data = await f.json();
 
