@@ -88,6 +88,26 @@
       </section>
 
       <template v-if="tickers.length">
+        <div class="max-w-xs">
+          Фильтр:
+          <div class="mt-1 relative rounded-md shadow-md">
+            <input
+              type="text"
+              class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
+            />
+          </div>
+
+          <button
+            class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          >
+            Назад
+          </button>
+          <button
+            class="my-4 mx-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          >
+            Вперед
+          </button>
+        </div>
         <hr class="w-full border-t border-gray-600 my-4" />
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
@@ -189,7 +209,15 @@ export default {
     };
   },
   created: function() {
-    this.getAllTickers();
+    const tickersData = localStorage.getItem("criptonomicon-list");
+    if (tickersData) {
+      this.tickers = JSON.parse(tickersData);
+      this.tickers.forEach(ticker => {
+        this.subscribeToUpdates(ticker.name);
+      });
+    }
+
+    this.getAllTickersFromAPI();
   },
 
   methods: {
@@ -206,26 +234,37 @@ export default {
         this.showingWrongTiker = true;
         return null;
       }
-      this.tickers.push(currentTicker);
-      this.showingWrongTiker = false;
+      if (this.ticker) {
+        this.tickers.push(currentTicker);
+
+        localStorage.setItem(
+          "criptonomicon-list",
+          JSON.stringify(this.tickers)
+        );
+        this.showingWrongTiker = false;
+        this.subscribeToUpdates(currentTicker.name);
+        this.ticker = "";
+      }
+    },
+
+    subscribeToUpdates(tickerName) {
       setInterval(async () => {
         const f = await fetch(
-          `https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.name}&tsyms=USD&api_key=f0662d79ddfc64357d7324999c381576700c981665fb871400a1b2611ca66cf1`
+          `https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key=f0662d79ddfc64357d7324999c381576700c981665fb871400a1b2611ca66cf1`
         );
         const data = await f.json();
 
         // currentTicker.price =  data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
-        this.tickers.find(t => t.name === currentTicker.name).price =
+        this.tickers.find(t => t.name === tickerName).price =
           data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
 
-        if (this.sel?.name === currentTicker.name) {
+        if (this.sel?.name === tickerName) {
           this.graph.push(data.USD);
         }
       }, 5000);
-      this.ticker = "";
     },
 
-    async getAllTickers() {
+    async getAllTickersFromAPI() {
       const allTickersROW = await fetch(
         "https://min-api.cryptocompare.com/data/all/coinlist?summary=true"
       );
@@ -251,6 +290,7 @@ export default {
 
     handleDelete(tickerToRemove) {
       this.tickers = this.tickers.filter(t => t !== tickerToRemove);
+      localStorage.setItem("criptonomicon-list", JSON.stringify(this.tickers));
     },
 
     normalizeGraph() {
