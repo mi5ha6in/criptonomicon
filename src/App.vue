@@ -1,5 +1,31 @@
 <template>
-  <div class="container mx-auto flex flex-col items-center bg-gray-100 p-4">
+  <div class="container mx-auto flex flex-col items-center p-4">
+    <div
+      v-if="isLoadingData"
+      class="fixed w-100 h-100 opacity-80 bg-purple-800 inset-0 z-50 flex items-center justify-center"
+    >
+      <svg
+        class="animate-spin -ml-1 mr-3 h-12 w-12 text-white"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        ></circle>
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        ></path>
+      </svg>
+    </div>
+
     <div class="container">
       <div class="w-full my-4"></div>
       <section>
@@ -12,12 +38,30 @@
               <input
                 v-model="ticker"
                 @keydown.enter="add"
+                @input="(showingWrongTiker = false), getHint()"
                 type="text"
                 name="wallet"
                 id="wallet"
                 class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
                 placeholder="Например DOGE"
+                autocomplete="off"
               />
+            </div>
+            <div
+              v-if="ticker.length && hints.length"
+              class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
+            >
+              <span
+                v-for="hint in hints"
+                :key="hint"
+                @click="(ticker = hint), add()"
+                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
+              >
+                {{ hint }}
+              </span>
+            </div>
+            <div v-if="showingWrongTiker" class="text-sm text-red-600">
+              Такой тикер уже добавлен
             </div>
           </div>
         </div>
@@ -133,14 +177,19 @@
 <script>
 export default {
   name: "App",
-
   data() {
     return {
       ticker: "",
       tickers: [],
       sel: null,
-      graph: []
+      graph: [],
+      isLoadingData: true,
+      showingWrongTiker: false,
+      hints: []
     };
+  },
+  created: function() {
+    this.getAllTickers();
   },
 
   methods: {
@@ -149,8 +198,16 @@ export default {
         name: this.ticker,
         price: "-"
       };
-
+      if (
+        this.tickers.find(
+          t => t.name.toUpperCase() === currentTicker.name.toUpperCase()
+        )
+      ) {
+        this.showingWrongTiker = true;
+        return null;
+      }
       this.tickers.push(currentTicker);
+      this.showingWrongTiker = false;
       setInterval(async () => {
         const f = await fetch(
           `https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.name}&tsyms=USD&api_key=f0662d79ddfc64357d7324999c381576700c981665fb871400a1b2611ca66cf1`
@@ -168,9 +225,28 @@ export default {
       this.ticker = "";
     },
 
+    async getAllTickers() {
+      const allTickersROW = await fetch(
+        "https://min-api.cryptocompare.com/data/all/coinlist?summary=true"
+      );
+      const { Data: allTickersData } = await allTickersROW.json();
+      this.allTickers = Object.values(allTickersData);
+      this.isLoadingData = false;
+    },
+
     select(ticker) {
       this.sel = ticker;
       this.graph = [];
+    },
+
+    getHint() {
+      if (this.ticker.length) {
+        this.hints = this.allTickers
+          .filter(item => item.Symbol.startsWith(this.ticker.toUpperCase()))
+          .map(item => item.Symbol)
+          .sort()
+          .slice(0, 4);
+      }
     },
 
     handleDelete(tickerToRemove) {
