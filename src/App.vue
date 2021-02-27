@@ -207,8 +207,6 @@ export default {
         return null;
       }
       this.tickers.push(currentTicker);
-
-      localStorage.setItem("criptonomicon");
       this.showingWrongTiker = false;
 
       setInterval(async () => {
